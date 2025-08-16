@@ -1,4 +1,7 @@
-﻿namespace Mevora;
-internal interface IMevoraDispatcher : IDispatcher
+﻿using System.Collections.Concurrent;
+
+namespace Mevora;
+public interface IMevoraDispatcher : IDispatcher
 {
+    
 }
