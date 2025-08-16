@@ -16,8 +16,6 @@ internal static class ConfigurationProcessor
 
         var types = assemblies.SelectMany(assembly => assembly.GetTypes()).Where(i => !i.IsInterface);
 
-        //var requestProcessors = types.Where(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IRequestProcessorAsync<,>) || t.GetGenericTypeDefinition() == typeof(IRequestProcessor<,>)).ToList();
-
         var requestProcessors = types
     .SelectMany(t => t.GetInterfaces()
         .Where(i => i.IsGenericType &&
@@ -30,19 +28,5 @@ internal static class ConfigurationProcessor
         {
             serviceCollection.TryAdd(new ServiceDescriptor(rp.Interface, rp.Implementation, configurationModel.Lifetime));
         }
-
-        //foreach (var requestProcessor in requestProcessors)
-        //{
-
-        //    var processor = requestProcessor.GetInterfaces().FirstOrDefault();
-
-        //    var processorRequest = requestProcessor.GetGenericArguments()[0];
-        //    var processorResponse = requestProcessor.GetGenericArguments()[1];
-
-        //    var genericType = processor.MakeGenericType(processorRequest, processorResponse);
-
-        //    serviceCollection.TryAdd(new ServiceDescriptor(genericType, configurationModel.Lifetime));
-        //}
-
     }
 }
