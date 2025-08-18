@@ -28,5 +28,9 @@ internal static class ConfigurationProcessor
         {
             serviceCollection.TryAdd(new ServiceDescriptor(rp.Interface, rp.Implementation, configurationModel.Lifetime));
         }
+       
+
+       
+       
     }
 }
