@@ -6,7 +6,6 @@ namespace Mevora;
 
 internal static class ConfigurationProcessor
 {
-
     internal static void RegisterProcessors(ConfigurationModel configurationModel, IServiceCollection serviceCollection)
     {
         List<Assembly> assemblies = configurationModel.ProcessorsToBeRegistered;
@@ -17,20 +16,21 @@ internal static class ConfigurationProcessor
         var types = assemblies.SelectMany(assembly => assembly.GetTypes()).Where(i => !i.IsInterface);
 
         var requestProcessors = types
-    .SelectMany(t => t.GetInterfaces()
-        .Where(i => i.IsGenericType &&
-                   (i.GetGenericTypeDefinition() == typeof(IRequestProcessorAsync<,>) ||
-                    i.GetGenericTypeDefinition() == typeof(IRequestProcessor<,>)))
-        .Select(i => new { Implementation = t, Interface = i }))
-    .ToList();
+            .SelectMany(t => t.GetInterfaces()
+                .Where(i => i.IsGenericType &&
+                           (i.GetGenericTypeDefinition() == typeof(IRequestProcessorAsync<,>) ||
+                            i.GetGenericTypeDefinition() == typeof(IRequestProcessor<,>)))
+                .Select(i => new { Implementation = t, Interface = i }))
+            .ToList();
 
         foreach (var rp in requestProcessors)
         {
             serviceCollection.TryAdd(new ServiceDescriptor(rp.Interface, rp.Implementation, configurationModel.Lifetime));
         }
-       
 
-       
-       
+        foreach (var (serviceType, implementationType) in configurationModel.PipelineActions)
+        {
+            serviceCollection.Add(new ServiceDescriptor(serviceType, implementationType, configurationModel.Lifetime));
+        }
     }
 }

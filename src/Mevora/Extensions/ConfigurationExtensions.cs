@@ -14,10 +14,8 @@ public static class ConfigurationExtensions
         services.AddSingleton<IMevoraDispatcher>(provider =>
         {
             return new MevoraDispatcher(provider);
-
         });
 
         return services;
     }
-
 }

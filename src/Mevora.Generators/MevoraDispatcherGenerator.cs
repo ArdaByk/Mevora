@@ -67,6 +67,8 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Mevora;
 
@@ -74,6 +76,7 @@ public class MevoraDispatcher: IMevoraDispatcher
 {
     private readonly IServiceProvider _serviceProvider;
     
+    private static readonly ConcurrentDictionary<Type, object[]> _cachedPipelineActions = new();
     private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>> _asyncVoidDispatchers = new();
     private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task<object>>> _asyncGenericDispatchers = new();
     private static readonly ConcurrentDictionary<Type, Action<object>> _syncVoidDispatchers = new();
@@ -82,6 +85,55 @@ public class MevoraDispatcher: IMevoraDispatcher
     public MevoraDispatcher(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
+    }
+
+    private T[] GetCachedPipelineActions<T>(Type requestType)
+    {
+        if (!_cachedPipelineActions.TryGetValue(requestType, out var cached))
+        {
+            var pipelineActions = _serviceProvider.GetServices<T>().ToArray();
+            cached = pipelineActions.Cast<object>().ToArray();
+            _cachedPipelineActions.TryAdd(requestType, cached);
+        }
+        return cached.Cast<T>().ToArray();
+    }
+
+    private async Task ExecutePipelineAsync<TRequest>(
+        global::Mevora.IPipelineAction<TRequest>[] pipelineActions, 
+        TRequest request, 
+        CancellationToken cancellationToken,
+        global::Mevora.ProcessorDelegate processor)
+        where TRequest : global::Mevora.IRequest
+    {
+        global::Mevora.ProcessorDelegate pipeline = processor;
+        
+        for (int i = pipelineActions.Length - 1; i >= 0; i--)
+        {
+            var pipelineAction = pipelineActions[i];
+            var currentPipeline = pipeline;
+            pipeline = () => pipelineAction.Run(request, currentPipeline, cancellationToken);
+        }
+        
+        await pipeline();
+    }
+
+    private async Task<TResponse> ExecutePipelineAsync<TRequest, TResponse>(
+        global::Mevora.IPipelineAction<TRequest, TResponse>[] pipelineActions, 
+        TRequest request, 
+        CancellationToken cancellationToken,
+        global::Mevora.ProcessorDelegate<TResponse> processor)
+        where TRequest : global::Mevora.IRequest<TResponse>
+    {
+        global::Mevora.ProcessorDelegate<TResponse> pipeline = processor;
+        
+        for (int i = pipelineActions.Length - 1; i >= 0; i--)
+        {
+            var pipelineAction = pipelineActions[i];
+            var currentPipeline = pipeline;
+            pipeline = () => pipelineAction.Run(request, currentPipeline, cancellationToken);
+        }
+        
+        return await pipeline();
     }");
 
         GenerateDispatchMethods(sb, compilation, requestTypes);
@@ -173,8 +225,21 @@ public class MevoraDispatcher: IMevoraDispatcher
         {{
             dispatcher = async (req, ct) =>
                 {{
-                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    await processor.ProcessAsync(({request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})req, ct);
+                    var pipelineActions = GetCachedPipelineActions<global::Mevora.IPipelineAction<{requestTypeName}>>(requestType);
+                    
+                    if (pipelineActions.Length > 0)
+                    {{
+                        await ExecutePipelineAsync(pipelineActions, ({requestTypeName})req, ct, async () =>
+                        {{
+                            var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
+                            await processor.ProcessAsync(({requestTypeName})req, ct);
+                        }});
+                    }}
+                    else
+                    {{
+                        var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
+                        await processor.ProcessAsync(({requestTypeName})req, ct);
+                    }}
                 }};
             _asyncVoidDispatchers.TryAdd(requestType, dispatcher);
         }}
@@ -191,10 +256,10 @@ public class MevoraDispatcher: IMevoraDispatcher
         
         if (!_syncVoidDispatchers.TryGetValue(requestType, out var dispatcher))
         {{
-            dispatcher =  (req) =>
+            dispatcher = (req) =>
                 {{
                     var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    processor.Process(({request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})req);
+                    processor.Process(({requestTypeName})req);
                 }};
             _syncVoidDispatchers.TryAdd(requestType, dispatcher);
         }}
@@ -226,17 +291,28 @@ public class MevoraDispatcher: IMevoraDispatcher
         {{
             dispatcher = async (req, ct) =>
                 {{
-                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    var result = await processor.ProcessAsync(({requestTypeName})req, ct);
-                    return result;
+                    var pipelineActions = GetCachedPipelineActions<global::Mevora.IPipelineAction<{requestTypeName}, {responseTypeName}>>(requestType);
+                    
+                    if (pipelineActions.Length > 0)
+                    {{
+                        return await ExecutePipelineAsync(pipelineActions, ({requestTypeName})req, ct, async () =>
+                        {{
+                            var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
+                            return await processor.ProcessAsync(({requestTypeName})req, ct);
+                        }});
+                    }}
+                    else
+                    {{
+                        var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
+                        return await processor.ProcessAsync(({requestTypeName})req, ct);
+                    }}
                 }};
             _asyncGenericDispatchers.TryAdd(requestType, dispatcher);
         }}
 
         var result = await dispatcher(request, cancellationToken);
         return ({responseTypeName})result;
-    }}
-");
+    }}");
         }
         else
         {
