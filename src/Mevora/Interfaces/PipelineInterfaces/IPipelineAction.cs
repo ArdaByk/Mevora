@@ -5,7 +5,7 @@ public delegate Task<TResponse> ProcessorDelegate<TResponse>();
 public delegate Task ProcessorDelegate();
 
 public interface IPipelineAction<in TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
+    where TRequest : IRequest
 {
     Task<TResponse> Run(TRequest request, ProcessorDelegate<TResponse> next, CancellationToken cancellationToken);
 }

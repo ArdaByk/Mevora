@@ -38,18 +38,20 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
 
         var iRequest = comp.GetTypeByMetadataName("Mevora.IRequest");
         var iRequestOfT = comp.GetTypeByMetadataName("Mevora.IRequest`1");
-        var iProcOfT = comp.GetTypeByMetadataName("Mevora.IRequestProcessor`1");
-        var iProcOfTT = comp.GetTypeByMetadataName("Mevora.IRequestProcessor`2");
         var iProcAsyncOfT = comp.GetTypeByMetadataName("Mevora.IRequestProcessorAsync`1");
         var iProcAsyncOfTT = comp.GetTypeByMetadataName("Mevora.IRequestProcessorAsync`2");
+        var iMessage = comp.GetTypeByMetadataName("Mevora.IMessage");
+        var iMessageProc = comp.GetTypeByMetadataName("Mevora.IMessageProcessor`1");
+        var iRequestValidator = comp.GetTypeByMetadataName("Mevora.IRequestValidator`1");
 
         bool implementsTarget = typeSymbol.AllInterfaces.Any(i =>
             (iRequest is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iRequest)) ||
             (iRequestOfT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iRequestOfT)) ||
-            (iProcOfT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcOfT)) ||
-            (iProcOfTT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcOfTT)) ||
             (iProcAsyncOfT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcAsyncOfT)) ||
-            (iProcAsyncOfTT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcAsyncOfTT))
+            (iProcAsyncOfTT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcAsyncOfTT)) ||
+            (iMessage is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iMessage)) ||
+            (iMessageProc is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iMessageProc)) ||
+            (iRequestValidator is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iRequestValidator))
         );
 
         return implementsTarget ? typeSymbol : null;
@@ -62,25 +64,26 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
     {
         var sb = new StringBuilder();
 
-        sb.Append(@"using System;
+        sb.Append(@"
+
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Linq;
+using Mevora;
 
 namespace Mevora;
 
-public class MevoraDispatcher: IMevoraDispatcher
+public partial class MevoraDispatcher : IMevoraDispatcher
 {
     private readonly IServiceProvider _serviceProvider;
     
     private static readonly ConcurrentDictionary<Type, object[]> _cachedPipelineActions = new();
     private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>> _asyncVoidDispatchers = new();
     private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task<object>>> _asyncGenericDispatchers = new();
-    private static readonly ConcurrentDictionary<Type, Action<object>> _syncVoidDispatchers = new();
-    private static readonly ConcurrentDictionary<Type, Func<object, object>> _syncGenericDispatchers = new();
 
     public MevoraDispatcher(IServiceProvider serviceProvider)
     {
@@ -99,13 +102,19 @@ public class MevoraDispatcher: IMevoraDispatcher
     }
 
     private async Task ExecutePipelineAsync<TRequest>(
-        global::Mevora.IPipelineAction<TRequest>[] pipelineActions, 
+        IPipelineAction<TRequest>[] pipelineActions, 
         TRequest request, 
         CancellationToken cancellationToken,
-        global::Mevora.ProcessorDelegate processor)
-        where TRequest : global::Mevora.IRequest
+        ProcessorDelegate processor)
+        where TRequest : IRequest
     {
-        global::Mevora.ProcessorDelegate pipeline = processor;
+        if (pipelineActions.Length == 0)
+        {
+            await processor();
+            return;
+        }
+
+        ProcessorDelegate pipeline = processor;
         
         for (int i = pipelineActions.Length - 1; i >= 0; i--)
         {
@@ -118,13 +127,18 @@ public class MevoraDispatcher: IMevoraDispatcher
     }
 
     private async Task<TResponse> ExecutePipelineAsync<TRequest, TResponse>(
-        global::Mevora.IPipelineAction<TRequest, TResponse>[] pipelineActions, 
+        IPipelineAction<TRequest, TResponse>[] pipelineActions, 
         TRequest request, 
         CancellationToken cancellationToken,
-        global::Mevora.ProcessorDelegate<TResponse> processor)
-        where TRequest : global::Mevora.IRequest<TResponse>
+        ProcessorDelegate<TResponse> processor)
+        where TRequest : IRequest<TResponse>, IRequest
     {
-        global::Mevora.ProcessorDelegate<TResponse> pipeline = processor;
+        if (pipelineActions.Length == 0)
+        {
+            return await processor();
+        }
+
+        ProcessorDelegate<TResponse> pipeline = processor;
         
         for (int i = pipelineActions.Length - 1; i >= 0; i--)
         {
@@ -134,13 +148,44 @@ public class MevoraDispatcher: IMevoraDispatcher
         }
         
         return await pipeline();
-    }");
+    }
+
+    private bool HasValidator<TRequest>() where TRequest : IRequest
+    {
+        return _serviceProvider.GetService<IRequestValidator<TRequest>>() != null;
+    }
+
+    private async Task ValidateRequestAsync<TRequest>(TRequest request) where TRequest : IRequest
+    {
+        var validator = _serviceProvider.GetService<IRequestValidator<TRequest>>();
+        if (validator == null)
+            return;
+
+        try
+        {
+            var context = new ValidationContext<TRequest>(request);
+            var result = validator.Validate(context);
+            
+            if (!result.IsValid)
+                throw new ValidationException(result.Errors);
+        }
+        catch (ValidationException)
+        {
+            throw; // Re-throw validation exceptions as-is
+        }
+        catch (Exception ex)
+        {
+            throw new ValidationException($""Validation failed with error: { ex.Message}"");
+        }
+    }
+
+    
+");
 
         GenerateDispatchMethods(sb, compilation, requestTypes);
+        GenerateMessagePublishers(sb, compilation, requestTypes);
 
-        sb.Append(@"
-}
-");
+        sb.AppendLine("}");
 
         context.AddSource("MevoraDispatcher.g.cs", sb.ToString());
     }
@@ -149,12 +194,9 @@ public class MevoraDispatcher: IMevoraDispatcher
     {
         var iRequest = compilation.GetTypeByMetadataName("Mevora.IRequest");
         var iRequestOfT = compilation.GetTypeByMetadataName("Mevora.IRequest`1");
-        var iProc = compilation.GetTypeByMetadataName("Mevora.IRequestProcessor");
-        var iProcOfT = compilation.GetTypeByMetadataName("Mevora.IRequestProcessor`1");
-        var iProcOfTT = compilation.GetTypeByMetadataName("Mevora.IRequestProcessor`2");
-        var iProcAsync = compilation.GetTypeByMetadataName("Mevora.IRequestProcessorAsync");
         var iProcAsyncOfT = compilation.GetTypeByMetadataName("Mevora.IRequestProcessorAsync`1");
         var iProcAsyncOfTT = compilation.GetTypeByMetadataName("Mevora.IRequestProcessorAsync`2");
+        var iRequestValidator = compilation.GetTypeByMetadataName("Mevora.IRequestValidator`1");
 
         bool Implements(INamedTypeSymbol t, INamedTypeSymbol? def)
             => def is not null && t.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, def));
@@ -162,13 +204,12 @@ public class MevoraDispatcher: IMevoraDispatcher
         var requests = requestTypes.Where(r => Implements(r, iRequest) || Implements(r, iRequestOfT)).ToArray();
         var processors = requestTypes.Where(r =>
             r.AllInterfaces.Any(i =>
-                (iProc is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProc)) ||
-                (iProcOfT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcOfT)) ||
-                (iProcOfTT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcOfTT)) ||
-                (iProcAsync is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcAsync)) ||
                 (iProcAsyncOfT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcAsyncOfT)) ||
                 (iProcAsyncOfTT is not null && SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iProcAsyncOfTT))
             )).ToArray();
+
+        // Tüm assembly'deki validator'ları bul
+        var validators = requestTypes.Where(v => v.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iRequestValidator))).ToList();
 
         foreach (var request in requests)
         {
@@ -180,132 +221,123 @@ public class MevoraDispatcher: IMevoraDispatcher
                     var def = iface.OriginalDefinition;
                     var args = iface.TypeArguments;
 
-                    if ((iProcOfTT is not null && SymbolEqualityComparer.Default.Equals(def, iProcOfTT)) ||
-                        (iProcAsyncOfTT is not null && SymbolEqualityComparer.Default.Equals(def, iProcAsyncOfTT)))
+                    bool hasValidator = validators.Any(v =>
+                        v.AllInterfaces
+                            .Where(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iRequestValidator))
+                            .Any(i => i.TypeArguments.Length > 0 && SymbolEqualityComparer.Default.Equals(i.TypeArguments[0], request))
+                    );
+
+                    if (iProcAsyncOfTT is not null && SymbolEqualityComparer.Default.Equals(def, iProcAsyncOfTT))
                     {
                         if (args.Length == 2 && SymbolEqualityComparer.Default.Equals(args[0], request))
                         {
-                            MakeGenericDispatchMethod(sb, request, args[1], processor, def);
+                            MakeGenericDispatchMethod(sb, request, args[1], processor, def, hasValidator);
+                            break;
                         }
-                        continue;
                     }
 
-                    if ((iProcOfT is not null && SymbolEqualityComparer.Default.Equals(def, iProcOfT)) ||
-                        (iProcAsyncOfT is not null && SymbolEqualityComparer.Default.Equals(def, iProcAsyncOfT)))
+                    if (iProcAsyncOfT is not null && SymbolEqualityComparer.Default.Equals(def, iProcAsyncOfT))
                     {
                         if (args.Length == 1 && SymbolEqualityComparer.Default.Equals(args[0], request))
                         {
-                            MakeDispatchMethod(sb, request, processor, def);
+                            MakeDispatchMethod(sb, request, processor, def, hasValidator);
+                            break;
                         }
-                        continue;
                     }
                 }
             }
         }
     }
 
-    private static void MakeDispatchMethod(StringBuilder sb, INamedTypeSymbol request, INamedTypeSymbol processor, INamedTypeSymbol processorInterface)
+    private static void GenerateMessagePublishers(
+        StringBuilder sb,
+        Compilation compilation,
+        ImmutableArray<INamedTypeSymbol> allTypes)
     {
-        string processorTypeName = processorInterface.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        bool isAsync = processorTypeName.Contains("IRequestProcessorAsync");
+        var iMessage = compilation.GetTypeByMetadataName("Mevora.IMessage");
+        if (iMessage == null) return;
 
-        string requestTypeName = request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var messageTypes = allTypes
+            .Where(t => t.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iMessage)))
+            .ToArray();
 
-        string interfaceName = isAsync ? "global::Mevora.IRequestProcessorAsync" : "global::Mevora.IRequestProcessor";
-        string interfaceWithGeneric = $"{interfaceName}<{requestTypeName}>";
-
-        if (isAsync)
+        foreach (var msgType in messageTypes)
         {
-            sb.Append($@"
-    public async Task DispatchAsync({request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} request, CancellationToken cancellationToken = default)
+            var msgTypeName = msgType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+            sb.Append($@"    
+    public async Task PublishAsync({msgTypeName} message, CancellationToken cancellationToken = default)
     {{
+        var processors = _serviceProvider.GetServices<IMessageProcessor<{msgTypeName}>>()
+            .GroupBy(p => p.GetType())
+            .Select(g => g.First())
+            .ToList();
+        
+        foreach (var processor in processors)
+        {{
+            await processor.Run(message, cancellationToken);
+        }}
+    }}
+");
+        }
+    }
+
+    private static void MakeDispatchMethod(StringBuilder sb, INamedTypeSymbol request, INamedTypeSymbol processor, INamedTypeSymbol processorInterface, bool hasValidator)
+    {
+        string requestTypeName = request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string interfaceWithGeneric = $"IRequestProcessorAsync<{requestTypeName}>";
+
+        sb.Append($@"
+    public async Task DispatchAsync({requestTypeName} request, CancellationToken cancellationToken = default)
+    {{
+        {(hasValidator ? "await ValidateRequestAsync(request);" : "")}
+        
         var requestType = request.GetType();
         
         if (!_asyncVoidDispatchers.TryGetValue(requestType, out var dispatcher))
         {{
             dispatcher = async (req, ct) =>
                 {{
-                    var pipelineActions = GetCachedPipelineActions<global::Mevora.IPipelineAction<{requestTypeName}>>(requestType);
+                    var pipelineActions = GetCachedPipelineActions<IPipelineAction<{requestTypeName}>>(requestType);
+                    var typedRequest = ({requestTypeName})req;
                     
-                    if (pipelineActions.Length > 0)
-                    {{
-                        await ExecutePipelineAsync(pipelineActions, ({requestTypeName})req, ct, async () =>
-                        {{
-                            var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                            await processor.ProcessAsync(({requestTypeName})req, ct);
-                        }});
-                    }}
-                    else
-                    {{
-                        var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                        await processor.ProcessAsync(({requestTypeName})req, ct);
-                    }}
+                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
+                    ProcessorDelegate processorDelegate = () => processor.ProcessAsync(typedRequest, ct);
+                    
+                    await ExecutePipelineAsync(pipelineActions, typedRequest, ct, processorDelegate);
                 }};
             _asyncVoidDispatchers.TryAdd(requestType, dispatcher);
         }}
 
         await dispatcher(request, cancellationToken);
     }}");
-        }
-        else
-        {
-            sb.Append($@"
-    public void Dispatch({request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} request)
-    {{
-        var requestType = request.GetType();
-        
-        if (!_syncVoidDispatchers.TryGetValue(requestType, out var dispatcher))
-        {{
-            dispatcher = (req) =>
-                {{
-                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    processor.Process(({requestTypeName})req);
-                }};
-            _syncVoidDispatchers.TryAdd(requestType, dispatcher);
-        }}
-
-        dispatcher(request);
-    }}");
-        }
     }
 
-    private static void MakeGenericDispatchMethod(StringBuilder sb, INamedTypeSymbol request, ITypeSymbol responseType, INamedTypeSymbol processor, INamedTypeSymbol processorInterface)
+    private static void MakeGenericDispatchMethod(StringBuilder sb, INamedTypeSymbol request, ITypeSymbol responseType, INamedTypeSymbol processor, INamedTypeSymbol processorInterface, bool hasValidator)
     {
-        string processorTypeName = processorInterface.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        bool isAsync = processorTypeName.Contains("IRequestProcessorAsync");
-
         string requestTypeName = request.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string responseTypeName = responseType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string interfaceWithGeneric = $"IRequestProcessorAsync<{requestTypeName}, {responseTypeName}>";
 
-        string interfaceName = isAsync ? "global::Mevora.IRequestProcessorAsync" : "global::Mevora.IRequestProcessor";
-        string interfaceWithGeneric = $"{interfaceName}<{requestTypeName}, {responseTypeName}>";
-
-        if (isAsync)
-        {
-            sb.Append($@"
+        sb.Append($@"
     public async Task<{responseTypeName}> DispatchAsync({requestTypeName} request, CancellationToken cancellationToken = default)
     {{
+        {(hasValidator ? "await ValidateRequestAsync(request);" : "")}
+        
         var requestType = request.GetType();
         
         if (!_asyncGenericDispatchers.TryGetValue(requestType, out var dispatcher))
         {{
             dispatcher = async (req, ct) =>
                 {{
-                    var pipelineActions = GetCachedPipelineActions<global::Mevora.IPipelineAction<{requestTypeName}, {responseTypeName}>>(requestType);
+                    var pipelineActions = GetCachedPipelineActions<IPipelineAction<{requestTypeName}, {responseTypeName}>>(requestType);
+                    var typedRequest = ({requestTypeName})req;
                     
-                    if (pipelineActions.Length > 0)
-                    {{
-                        return await ExecutePipelineAsync(pipelineActions, ({requestTypeName})req, ct, async () =>
-                        {{
-                            var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                            return await processor.ProcessAsync(({requestTypeName})req, ct);
-                        }});
-                    }}
-                    else
-                    {{
-                        var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                        return await processor.ProcessAsync(({requestTypeName})req, ct);
-                    }}
+                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
+                    ProcessorDelegate<{responseTypeName}> processorDelegate = () => processor.ProcessAsync(typedRequest, ct);
+                    
+                    var result = await ExecutePipelineAsync(pipelineActions, typedRequest, ct, processorDelegate);
+                    return (object)result;
                 }};
             _asyncGenericDispatchers.TryAdd(requestType, dispatcher);
         }}
@@ -313,28 +345,5 @@ public class MevoraDispatcher: IMevoraDispatcher
         var result = await dispatcher(request, cancellationToken);
         return ({responseTypeName})result;
     }}");
-        }
-        else
-        {
-            sb.Append($@"
-    public {responseTypeName} Dispatch({requestTypeName} request)
-    {{
-        var requestType = request.GetType();
-        
-        if (!_syncGenericDispatchers.TryGetValue(requestType, out var dispatcher))
-        {{
-            dispatcher = (req) =>
-                {{
-                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    var result = processor.Process(({requestTypeName})req);
-                    return result;
-                }};
-            _syncGenericDispatchers.TryAdd(requestType, dispatcher);
-        }}
-
-        var result = dispatcher(request);
-        return ({responseTypeName})result;
-    }}");
-        }
     }
 }

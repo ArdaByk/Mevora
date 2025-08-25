@@ -8,18 +8,12 @@ using System.Threading.Tasks;
 
 namespace Mevora;
 
-public class GetUserByIdQuery : IRequest<Guid> { }
+public class GetUserByIdQuery : IRequest<string> { public string Name { get; set; } }
+public class TestQuery : IRequest { public string Name { get; set; } }
 
-public class GetUserByIdQueryProcessor : IRequestProcessorAsync<GetUserByIdQuery, Guid>
-{
-    public Task<Guid> ProcessAsync(GetUserByIdQuery request, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(Guid.NewGuid());
-    }
-}
-
+// Unified LoggingBehavior that works for both response and void requests
 public class LoggingBehavior<TRequest, TResponse> : IPipelineAction<TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
+    where TRequest : IRequest
 {
     private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
 
@@ -32,8 +26,16 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineAction<TRequest, TR
     {
         var requestName = typeof(TRequest).Name;
         var responseName = typeof(TResponse).Name;
+        var isVoidRequest = typeof(TResponse) == typeof(object);
 
-        _logger.LogInformation("Executing request {RequestName} -> {ResponseName}", requestName, responseName);
+        if (isVoidRequest)
+        {
+            _logger.LogInformation("Executing void request {RequestName}", requestName);
+        }
+        else
+        {
+            _logger.LogInformation("Executing request {RequestName} -> {ResponseName}", requestName, responseName);
+        }
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -42,8 +44,17 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineAction<TRequest, TR
             var response = await next();
 
             stopwatch.Stop();
-            _logger.LogInformation("Request {RequestName} completed successfully in {ElapsedMs}ms",
-                requestName, stopwatch.ElapsedMilliseconds);
+
+            if (isVoidRequest)
+            {
+                _logger.LogInformation("Void request {RequestName} completed successfully in {ElapsedMs}ms",
+                    requestName, stopwatch.ElapsedMilliseconds);
+            }
+            else
+            {
+                _logger.LogInformation("Request {RequestName} completed successfully in {ElapsedMs}ms",
+                    requestName, stopwatch.ElapsedMilliseconds);
+            }
 
             return response;
         }
@@ -54,5 +65,60 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineAction<TRequest, TR
                 requestName, stopwatch.ElapsedMilliseconds);
             throw;
         }
+    }
+}
+
+public class GetUserByIdQueryProcessor : IRequestProcessorAsync<GetUserByIdQuery, string>
+{
+    public Task<string> ProcessAsync(GetUserByIdQuery request, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(request.Name);
+    }
+}
+public class TestQueryProcessor : IRequestProcessorAsync<TestQuery>
+{
+    public Task ProcessAsync(TestQuery request, CancellationToken cancellationToken)
+    {
+        // Process the request but don't return anything since it's void
+        Console.WriteLine($"Processing TestQuery with Name: {request.Name}");
+        return Task.CompletedTask;
+    }
+}
+
+public class UserRegisteredMessage : IMessage { }
+
+public class UserRegisteredMessageProcessor2 : IMessageProcessor<UserRegisteredMessage>
+{
+    public Task Run(UserRegisteredMessage message, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult("sent ss.");
+    }
+
+}
+
+public class UserRegisteredMessageProcessor : IMessageProcessor<UserRegisteredMessage>
+{
+    public Task Run(UserRegisteredMessage message, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult("sent email.");
+    }
+}
+
+public class TestQueryValidator : IRequestValidator<TestQuery>
+{
+    public ValidationResult Validate(ValidationContext<TestQuery> context)
+    {
+        return context.CheckNotEmpty(x => x.Name, "Ad alanı boş olmamalı.")
+            .ToResult();
+    }
+}
+
+
+public class UserRegisterValidator : IRequestValidator<TestQuery>
+{
+    public ValidationResult Validate(ValidationContext<TestQuery> context)
+    {
+        return context.CheckNotEmpty(x => x.Name, "Ad alanı boş olmamalı.")
+            .ToResult();
     }
 }

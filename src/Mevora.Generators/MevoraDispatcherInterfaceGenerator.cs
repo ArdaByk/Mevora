@@ -12,6 +12,7 @@ public class MevoraDispatcherInterfaceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // ---- CLASSLARI YAKALA ----
         var classDeclarations = context.SyntaxProvider
            .CreateSyntaxProvider(
                predicate: static (s, _) => s is ClassDeclarationSyntax,
@@ -21,15 +22,15 @@ public class MevoraDispatcherInterfaceGenerator : IIncrementalGenerator
                })
            .Where(static m => m is not null);
 
+        // ---- REQUEST PROCESSORLAR ----
         var processorTypes = classDeclarations
             .Select((symbol, _) =>
             {
+                // <CHANGE> Updated to only look for async processors since sync was removed
                 var processorInterface = symbol!.AllInterfaces.FirstOrDefault(i =>
-                   (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IRequestProcessor<TRequest>" && i.TypeArguments.Length == 1) ||
-                   (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IRequestProcessor<TRequest, TResponse>" && i.TypeArguments.Length == 2) ||
-                     (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IRequestProcessorAsync<TRequest>" && i.TypeArguments.Length == 1) ||
-                   (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IRequestProcessorAsync<TRequest, TResponse>" && i.TypeArguments.Length == 2)
-
+                   (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IRequestProcessorAsync<TRequest>" && i.TypeArguments.Length == 1) ||
+                   (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IRequestProcessorAsync<TRequest, TResponse>" && i.TypeArguments.Length == 2) ||
+                   (i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IMessageProcessor<TMessage>" && i.TypeArguments.Length == 1)
                    );
 
                 if (processorInterface == null)
@@ -45,73 +46,67 @@ public class MevoraDispatcherInterfaceGenerator : IIncrementalGenerator
                 {
                     ProcessorClass = symbol,
                     IsAsync = isAsync,
+                    IsRequestProcessor = processorInterface.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Contains("Request"),
                     RequestType = processorInterface.TypeArguments[0],
                     ResponseType = responseType
                 };
             })
             .Where(static m => m is not null);
 
-        context.RegisterSourceOutput(processorTypes.Collect(), (spc, collected) =>
+        // ---- IMessage IMPLEMENT EDEN SINIFLAR ----
+        var messageTypes = classDeclarations
+            .Where(symbol => symbol!.AllInterfaces.Any(i =>
+                i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Mevora.IMessage"))
+            .Select((symbol, _) => symbol)
+            .Where(static m => m is not null);
+
+        // ---- OUTPUT ----
+        context.RegisterSourceOutput(processorTypes.Collect().Combine(messageTypes.Collect()), (spc, collected) =>
         {
-            var items = collected
-                .Where(x => x != null)
-                .ToArray();
+            var (processors, messages) = collected;
+
+            var items = processors.Where(x => x != null).ToArray();
+            var messageItems = messages.Distinct(SymbolEqualityComparer.Default).ToArray();
 
             var sb = new StringBuilder();
 
-            if (items.Length == 0)
-            {
-                sb.AppendLine("using System;");
-                sb.AppendLine("using System.Threading;");
-                sb.AppendLine("using System.Threading.Tasks;");
-                sb.AppendLine();
-                sb.AppendLine("namespace Mevora;");
-                sb.AppendLine();
-                sb.AppendLine("public interface IMevoraDispatcher");
-                sb.AppendLine("{");
-                sb.AppendLine("}");
-            } else
-            {
-                sb.AppendLine("using System;");
-                sb.AppendLine("using System.Threading;");
-                sb.AppendLine("using System.Threading.Tasks;");
-                sb.AppendLine();
-                sb.AppendLine("namespace Mevora;");
-                sb.AppendLine();
-                sb.AppendLine("public interface IMevoraDispatcher");
-                sb.AppendLine("{");
+            sb.AppendLine("using System;");
+            sb.AppendLine("using System.Threading;");
+            sb.AppendLine("using System.Threading.Tasks;");
+            sb.AppendLine();
+            sb.AppendLine("namespace Mevora;");
+            sb.AppendLine();
+            sb.AppendLine("public interface IMevoraDispatcher");
+            sb.AppendLine("{");
 
-                foreach (var item in items)
+            // ---- Dispatch metodları - only async since sync was removed ----
+            foreach (var item in items)
+            {
+                if (item!.IsRequestProcessor)
                 {
-                    var reqType = item!.RequestType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                    if (item.IsAsync)
+                    var reqType = item.RequestType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    // <CHANGE> Only generate async methods since sync was removed
+                    if (item.ResponseType != null)
                     {
-                        if (item.ResponseType != null)
-                        {
-                            var respType = item.ResponseType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                            sb.AppendLine($"    Task<{respType}> DispatchAsync({reqType} request, CancellationToken cancellationToken = default);");
-                        }
-                        else
-                        {
-                            sb.AppendLine($"    Task DispatchAsync({reqType} request, CancellationToken cancellationToken = default);");
-                        }
+                        var respType = item.ResponseType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                        sb.AppendLine($"    Task<{respType}> DispatchAsync({reqType} request, CancellationToken cancellationToken = default);");
                     }
                     else
                     {
-                        if (item.ResponseType != null)
-                        {
-                            var respType = item.ResponseType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                            sb.AppendLine($"    {respType} Dispatch({reqType} request);");
-                        }
-                        else
-                        {
-                            sb.AppendLine($"    void Dispatch({reqType} request);");
-                        }
+                        sb.AppendLine($"    Task DispatchAsync({reqType} request, CancellationToken cancellationToken = default);");
                     }
                 }
-
-                sb.AppendLine("}");
             }
+
+            // ---- Publish metodları ----
+            foreach (var msg in messageItems)
+            {
+                var msgType = msg!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                sb.AppendLine($"    Task PublishAsync({msgType} message, CancellationToken cancellationToken = default);");
+            }
+
+            sb.AppendLine("}");
+
             spc.AddSource("IMevoraDispatcher.g.cs", sb.ToString());
         });
     }
