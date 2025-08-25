@@ -84,6 +84,8 @@ public partial class MevoraDispatcher : IMevoraDispatcher
     private static readonly ConcurrentDictionary<Type, object[]> _cachedPipelineActions = new();
     private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>> _asyncVoidDispatchers = new();
     private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task<object>>> _asyncGenericDispatchers = new();
+    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>[]> _cachedMessageDelegates = new();
+
 
     public MevoraDispatcher(IServiceProvider serviceProvider)
     {
@@ -179,6 +181,28 @@ public partial class MevoraDispatcher : IMevoraDispatcher
         }
     }
 
+  private Func<object, CancellationToken, Task>[] GetCachedMessageDelegates<T>() where T : IMessage
+{
+    var msgType = typeof(T);
+
+    if (!_cachedMessageDelegates.TryGetValue(msgType, out var cached))
+    {
+        var delegates = _serviceProvider
+            .GetServices<IMessageProcessor<T>>()
+            .GroupBy(p => p.GetType()) // duplicate processor'ları engelle
+            .Select(g => g.First())
+            .Select<IMessageProcessor<T>, Func<object, CancellationToken, Task>>(proc =>
+                async (msg, ct) => await proc.Run((T)msg, ct))
+            .ToArray();
+
+        _cachedMessageDelegates.TryAdd(msgType, delegates);
+        cached = delegates;
+    }
+
+    return cached;
+}
+
+
     
 ");
 
@@ -266,18 +290,15 @@ public partial class MevoraDispatcher : IMevoraDispatcher
             var msgTypeName = msgType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
             sb.Append($@"    
-    public async Task PublishAsync({msgTypeName} message, CancellationToken cancellationToken = default)
+public async Task PublishAsync({msgTypeName} message, CancellationToken cancellationToken = default)
+{{
+    var delegates = GetCachedMessageDelegates<{msgTypeName}>();
+    
+    foreach (var dlg in delegates)
     {{
-        var processors = _serviceProvider.GetServices<IMessageProcessor<{msgTypeName}>>()
-            .GroupBy(p => p.GetType())
-            .Select(g => g.First())
-            .ToList();
-        
-        foreach (var processor in processors)
-        {{
-            await processor.Run(message, cancellationToken);
-        }}
+        await dlg(message, cancellationToken);
     }}
+}}
 ");
         }
     }
