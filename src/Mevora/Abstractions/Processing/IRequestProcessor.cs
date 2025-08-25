@@ -12,15 +12,3 @@ public interface IRequestProcessorAsync<TRequest>
 {
     Task ProcessAsync(TRequest request, CancellationToken cancellationToken);
 }
-
-public interface IRequestProcessor<TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
-{
-    TResponse Process(TRequest request);
-}
-
-public interface IRequestProcessor<TRequest>
-    where TRequest : IRequest
-{
-    void Process(TRequest request);
-}
