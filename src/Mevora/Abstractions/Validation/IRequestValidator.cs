@@ -1,4 +1,4 @@
-﻿namespace Mevora;
+namespace Mevora;
 
 public interface IRequestValidator<TRequest>
     where TRequest : IRequest

@@ -1,4 +1,4 @@
-﻿using Mevora;
+using Mevora;
 using System.Collections.Concurrent;
 
 namespace Microsoft.Extensions.DependencyInjection;

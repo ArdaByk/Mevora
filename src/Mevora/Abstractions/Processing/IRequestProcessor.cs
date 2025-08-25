@@ -1,4 +1,4 @@
-﻿namespace Mevora;
+namespace Mevora;
 
 public interface IRequestProcessorAsync<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
