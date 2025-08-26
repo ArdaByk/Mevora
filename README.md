@@ -29,12 +29,15 @@ dotnet add package Mevora
 Below are the definitions of the components you can use.
 
 `IRequest`: The Interface defining request classes (for operations that do not return a response).
+
 `IRequest<TResponse>`: The Interface defining request classes (for operations that return a response).
 
 `IRequestProcessor<TRequest>`: The Interface that defines the class that will process a request of type TRequest when it arrives (for operations that do not return a response).
+
 `IRequestProcessor<TRequest, TResponse>`: The Interface that defines the class that will process a request of type TRequest when it arrives (for operations that return a response).
 
 `IMessage`: The interface that defines the messages to be published.
+
 `IMessageProcessor<TMessage>`: The interface that defines the classes that process published messages.
 
 `IPipelineAction<TRequest, TResponse>`: The interface that defines the operations to be performed before or after the request processing stage.
@@ -53,5 +56,5 @@ builder.Services.AddMevora(config =>
     .AddProcessorsFromAssembly(Assembly.GetExecutingAssembly())
     .AddPipelineAction(typeof(LoggingAction<,>))
     .AddPipelineAction(typeof(CachingAction<,>));
-);
+});
 ```
