@@ -4,7 +4,7 @@
 </p>
 
 # Mevora
-Mevora enables you to quickly and easily perform certain request/response and event operations using the CQRS and Mediator design patterns.
+Mevora enables you to quickly and easily perform certain request/response and event operations using the CQRS and Mediator design patterns. You can review the [documentation](#hakkında) to learn how to use Mevora.
 
 ## How does Mevora work?
 
