@@ -8,7 +8,7 @@ Mevora enables you to quickly and easily perform certain request/response and ev
 
 ## How does Mevora work?
 
-Mevora identifies all your Request Processor, Pipeline Action, and Message Processor classes at the beginning of the project and creates a main MevoraDispatcher class. It creates the necessary methods for each Processor class within the class and makes them available for your use. Since these operations are performed at compile-time, it offers high-performance usage.
+Mevora identifies all your Request Processor, Pipeline Action and Message Processor classes at the beginning of the project and creates a main MevoraDispatcher class. It creates the necessary methods for each Processor class within the class and makes them available for your use. Since these operations are performed at compile-time, it offers high-performance usage.
 
 ---
 
