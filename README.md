@@ -3,9 +3,12 @@
   <img src="docs/logo.png" alt="Mevora Logo" width="150"/>
 </p>
 
-# Mevora Library
+# Mevora
+Mevora enables you to quickly and easily perform certain request/response and event operations using the CQRS and Mediator design patterns.
 
-> Modern, güçlü ve kolay kullanılabilir bir dispatcher ve messaging kütüphanesi.
+## How does Mevora work?
+
+Mevora identifies all your Request Processor, Pipeline Action, and Message Processor classes at the beginning of the project and creates a main MevoraDispatcher class. It creates the necessary methods for each Processor class within the class and makes them available for your use. Since these operations are performed at compile-time, it offers high-performance usage.
 
 ---
 
