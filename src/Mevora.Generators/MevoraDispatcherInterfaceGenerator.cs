@@ -35,13 +35,8 @@ public class MevoraDispatcherInterfaceGenerator : IIncrementalGenerator
                 if (processorInterface.TypeArguments.Length > 1)
                     responseType = processorInterface.TypeArguments[1] as INamedTypeSymbol;
 
-                bool isAsync = processorInterface.OriginalDefinition
-                    .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                    .Contains("Async");
-
                 return new ProcessorDescriptor(
                     symbol!,
-                    isAsync,
                     processorInterface.OriginalDefinition
                         .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
                         .Contains("Request"),

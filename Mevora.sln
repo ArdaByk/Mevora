@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36301.6
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mevora", "src\Mevora\Mevora.csproj", "{D491F5EF-058D-4D3D-8C8A-56C12B4D190D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mevora.Generators", "src\Mevora.Generators\Mevora.Generators.csproj", "{EC2C1E74-9F0F-4FB5-B36B-74221406684D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{7059F1B5-18C3-4166-863D-F886AEDEB248}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,6 +25,10 @@ Global
 		{EC2C1E74-9F0F-4FB5-B36B-74221406684D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EC2C1E74-9F0F-4FB5-B36B-74221406684D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EC2C1E74-9F0F-4FB5-B36B-74221406684D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7059F1B5-18C3-4166-863D-F886AEDEB248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7059F1B5-18C3-4166-863D-F886AEDEB248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7059F1B5-18C3-4166-863D-F886AEDEB248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7059F1B5-18C3-4166-863D-F886AEDEB248}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -30,6 +36,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{D491F5EF-058D-4D3D-8C8A-56C12B4D190D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{EC2C1E74-9F0F-4FB5-B36B-74221406684D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{7059F1B5-18C3-4166-863D-F886AEDEB248} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {30A56482-8004-4A2F-BB29-133152BE4E9B}

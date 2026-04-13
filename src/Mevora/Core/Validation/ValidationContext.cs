@@ -4,12 +4,18 @@ namespace Mevora;
 
 public class ValidationContext<T>
 {
-    private readonly T _instance;
+    private T _instance;
     private readonly List<string> _errors = new();
 
     public ValidationContext(T instance)
     {
         _instance = instance;
+    }
+
+    public void Reset(T instance)
+    {
+        _instance = instance;
+        _errors.Clear();
     }
 
     /// <summary>

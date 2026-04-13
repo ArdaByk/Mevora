@@ -103,18 +103,43 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
 
     private bool HasValidator<TRequest>() where TRequest : IRequest
     {
-        return _serviceProvider.GetService<IRequestValidator<TRequest>>() != null;
+        var type = typeof(TRequest);
+        if (_hasValidatorCache.TryGetValue(type, out var hasValidator)) 
+            return hasValidator;
+
+        var validator = _serviceProvider.GetService<IRequestValidator<TRequest>>();
+        hasValidator = validator != null;
+        
+        if (hasValidator)
+            _cachedValidators.TryAdd(type, validator!);
+            
+        _hasValidatorCache.TryAdd(type, hasValidator);
+        return hasValidator;
     }
 
     private async Task ValidateRequestAsync<TRequest>(TRequest request) where TRequest : IRequest
     {
-        var validator = _serviceProvider.GetService<IRequestValidator<TRequest>>();
-        if (validator == null)
+        if (!HasValidator<TRequest>()) 
             return;
+            
+        var requestType = typeof(TRequest);
+        var validator = (IRequestValidator<TRequest>)_cachedValidators[requestType];
+
+        var pool = _validationContextPool.GetOrAdd(requestType, _ => new ConcurrentBag<object>());
+        
+        if (!pool.TryTake(out var contextObj))
+        {
+            contextObj = new ValidationContext<TRequest>(request);
+        }
+        else
+        {
+            ((ValidationContext<TRequest>)contextObj).Reset(request);
+        }
+
+        var context = (ValidationContext<TRequest>)contextObj;
 
         try
         {
-            var context = new ValidationContext<TRequest>(request);
             var result = validator.Validate(context);
             
             if (!result.IsValid)
@@ -127,6 +152,10 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
         catch (Exception ex)
         {
             throw new ValidationException($""Validation failed with error: { ex.Message}"");
+        }
+        finally
+        {
+            pool.Add(contextObj);
         }
     }
 
