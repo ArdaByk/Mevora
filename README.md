@@ -57,4 +57,5 @@ builder.Services.AddMevora(config =>
     .AddPipelineAction(typeof(LoggingAction<,>))
     .AddPipelineAction(typeof(CachingAction<,>));
 });
+builder.Services.AddMevoraDispatcher();
 ```
