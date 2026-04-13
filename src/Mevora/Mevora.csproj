@@ -4,7 +4,44 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- NuGet Settings -->
+    <PackageId>Mevora</PackageId>
+    <Version>1.0.0</Version>
+    <Title>Mevora</Title>
+    <Authors>Arda</Authors>
+    <Description>Mevora is a high-performance, compile-time powered CQRS and Mediator framework for .NET leveraging C# Source Generators. Strictly type-safe, and Native AOT friendly.</Description>
+    <PackageTags>cqrs;mediator;source-generator;performance;aot</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>logo.png</PackageIcon>
+    <RepositoryUrl>https://github.com/ArdaByk/Mevora</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <!-- Do not include analyzer dependencies as transitive dependencies -->
+    <DevelopmentDependency>false</DevelopmentDependency>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\docs\logo.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Add project reference so it builds before Mevora -->
+    <ProjectReference Include="..\Mevora.Generators\Mevora.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="All" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Tells pack to run a target to get the files -->
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerator</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="PackSourceGenerator" DependsOnTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <!-- Find the output of the generator project -->
+      <TfmSpecificPackageFile Include="..\Mevora.Generators\bin\$(Configuration)\netstandard2.0\Mevora.Generators.dll" 
+                              PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.8" />
