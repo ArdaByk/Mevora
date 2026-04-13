@@ -12,11 +12,6 @@ public static class ConfigurationExtensions
 
         ConfigurationProcessor.RegisterProcessors(config, services);
 
-        services.AddSingleton<IMevoraDispatcher>(provider =>
-        {
-            return new MevoraDispatcher(provider);
-        });
-
         return services;
     }
 

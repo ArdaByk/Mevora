@@ -190,6 +190,20 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
         builder.EndClass();
 
         context.AddSource("MevoraDispatcher.g.cs", builder.ToString());
+
+        context.AddSource("MevoraDispatcherServiceExtensions.g.cs", @"
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Mevora;
+
+public static class MevoraDispatcherServiceExtensions
+{
+    public static IServiceCollection AddMevoraDispatcher(this IServiceCollection services)
+    {
+        return services.AddSingleton<global::Mevora.IMevoraDispatcher, global::Mevora.MevoraDispatcher>();
+    }
+}
+");
     }
 
 }

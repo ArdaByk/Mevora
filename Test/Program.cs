@@ -19,8 +19,8 @@ builder.Services.AddMevora(config =>
     config.AddPipelineAction(typeof(SimpleLoggingAction<>));
 });
 
-// Explicitly register the generated dispatcher for this assembly
-builder.Services.AddSingleton<IMevoraDispatcher, MevoraDispatcher>();
+// Explicitly register the generated dispatcher for this assembly using the generated extension method
+builder.Services.AddMevoraDispatcher();
 
 
 
