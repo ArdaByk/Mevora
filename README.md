@@ -12,7 +12,6 @@ By leveraging C# Source Generators, Mevora analyzes your project at compile-time
 
 ## Key Features
 
-* **Zero Runtime Reflection**: Dispatchers and method bindings are generated entirely at compile-time.
 * **Compile-Time Safety**: If you forget to write a handler for a request, you get a compiler error immediately, not a runtime crash!
 * **First-Class Validation**: Built-in support for performant, object-pooled validation pipelines.
 * **Matryoshka Pipelines**: Easily inject behaviors (Caching, Logging, Transaction Handling) around your request processors.
