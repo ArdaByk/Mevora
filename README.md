@@ -131,7 +131,7 @@ public class UsersController : ControllerBase
 }
 ```
 
-> **Note:** If you create a `GetUserDetailsRequest` but forget to create the matching processor, your project will **refuse to compile**. Mevora strongly protects your architecture! 🛡️
+> **Note:** If you create a `GetUserDetailsRequest` but forget to create the matching processor, your project will **refuse to compile**. Mevora strongly protects your architecture!
 
 ---
 
@@ -246,14 +246,3 @@ public class CreateUserRequestValidator : IRequestValidator<CreateUserRequest>
 Validators are seamlessly cached, and `ValidationContext` objects are concurrently pooled, meaning the GC (Garbage Collector) receives near-zero overhead during high-traffic validation.
 
 ---
-
-## Frequently Asked Questions
-
-**Does Mevora have Lifecycle issues like Captive Dependencies?**
-No. Mevora resolves your processors correctly inside the HTTP Request Scope using pure dependency injection. `Transient` processors are created newly on every request, and `Scoped` processors correctly resolve their nested Entity Framework Contexts without memory leaking.
-
-**Can I use CancellationToken in my requests?**
-Yes. Every request and pipeline takes a `CancellationToken`. It bubbles down completely smoothly so you can terminate database queries exactly when the client drops the request!
-
-**Do exceptions bubble up correctly?**
-Yes! If your `IRequestProcessor` throws an exception, Mevora ensures that the raw StackTrace surfaces beautifully to your global exception handler. Pipeling completely respects async contexts.
