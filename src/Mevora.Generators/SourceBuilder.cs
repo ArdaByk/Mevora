@@ -29,15 +29,7 @@ public partial class {className} : {iface}
 {{
     private readonly IServiceProvider _serviceProvider;
     
-    private static readonly ConcurrentDictionary<Type, object[]> _cachedPipelineActions = new();
-    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>> _asyncVoidDispatchers = new();
-    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task<object>>> _asyncGenericDispatchers = new();
-    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>[]> _cachedMessageDelegates = new();
-    
-    private static readonly ConcurrentDictionary<Type, bool> _hasValidatorCache = new();
-    private static readonly ConcurrentDictionary<Type, object> _cachedValidators = new();
     private static readonly ConcurrentDictionary<Type, ConcurrentBag<object>> _validationContextPool = new();
-
 
     public {className}(IServiceProvider serviceProvider)
     {{

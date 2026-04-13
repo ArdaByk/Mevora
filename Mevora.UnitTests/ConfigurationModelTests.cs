@@ -59,22 +59,15 @@ public class ConfigurationModelTests
     // ────────────────────────────────────────────
 
     [Fact]
-    public void AddMevora_WithNoAssembly_Should_ThrowOnBuild()
+    public void AddMevora_WithNoAssembly_Should_ThrowArgumentException()
     {
-        // Arrange — hiç assembly kayıtlı değil
+        // Arrange
         var services = new ServiceCollection();
-        services.AddMevora(_ => { /* boş yapılandırma */ });
-        services.AddMevoraDispatcher();
-        var sp = services.BuildServiceProvider();
-        var dispatcher = sp.GetRequiredService<IMevoraDispatcher>();
 
-        // Act — dispatcher alan çözümleme başarılı ama DispatchAsync ArgumentException fırlatmalı
-        // (ProcessorRegistrar assembly bulamayınca exception üretir)
-        // Burada beklenti: dispatcher örneği oluşturulamamalı ya da
-        // servisi çözerken hata alınmalı — Mevora tasarım kararına göre
-        // bu exception BuildServiceProvider veya ilk çözümde çıkar.
-        // Mevora'nın mevcut davranışına göre test yazılmıştır.
-        dispatcher.Should().NotBeNull("Dispatcher oluşturulabilmeli; hata DispatchAsync sırasında çıkar");
+        // Act & Assert
+        var act = () => services.AddMevora(cfg => { /* empty config */ });
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*No assemblies were registered*");
     }
 
     // ────────────────────────────────────────────

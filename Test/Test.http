@@ -1,4 +1,4 @@
-@HostAddress = http://localhost:5000/api/mevora
+@HostAddress = http://localhost:5015/api/mevora
 
 ### 1. Test Ping Request (Should succeed and return Pong response)
 POST {{HostAddress}}/ping

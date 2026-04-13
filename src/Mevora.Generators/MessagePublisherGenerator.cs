@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -31,11 +31,11 @@ internal class MessagePublisherGenerator
             sb.Append($@"    
     public async Task PublishAsync({msgTypeName} message, CancellationToken cancellationToken = default)
     {{
-        var delegates = GetCachedMessageDelegates<{msgTypeName}>();
+        var processors = _serviceProvider.GetServices<IMessageProcessor<{msgTypeName}>>();
         
-        foreach (var dlg in delegates)
+        foreach (var processor in processors)
         {{
-            await dlg(message, cancellationToken);
+            await processor.Run(message, cancellationToken);
         }}
     }}
 ");

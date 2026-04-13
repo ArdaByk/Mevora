@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -83,25 +83,11 @@ internal class DispatcherMethodGenerator
     public async Task DispatchAsync({requestTypeName} request, CancellationToken cancellationToken = default)
     {{
         {(hasValidator ? "await ValidateRequestAsync(request);" : "")}
+        var pipelineActions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetServices<IPipelineAction<{requestTypeName}>>(_serviceProvider).ToArray();
+        var processor = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<{interfaceWithGeneric}>(_serviceProvider);
+        ProcessorDelegate processorDelegate = () => processor.ProcessAsync(request, cancellationToken);
         
-        var requestType = request.GetType();
-        
-        if (!_asyncVoidDispatchers.TryGetValue(requestType, out var dispatcher))
-        {{
-            dispatcher = async (req, ct) =>
-                {{
-                    var pipelineActions = GetCachedPipelineActions<IPipelineAction<{requestTypeName}>>(requestType);
-                    var typedRequest = ({requestTypeName})req;
-                    
-                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    ProcessorDelegate processorDelegate = () => processor.ProcessAsync(typedRequest, ct);
-                    
-                    await ExecutePipelineAsync(pipelineActions, typedRequest, ct, processorDelegate);
-                }};
-            _asyncVoidDispatchers.TryAdd(requestType, dispatcher);
-        }}
-
-        await dispatcher(request, cancellationToken);
+        await ExecutePipelineAsync(pipelineActions, request, cancellationToken, processorDelegate);
     }}");
     }
 
@@ -115,27 +101,11 @@ internal class DispatcherMethodGenerator
     public async Task<{responseTypeName}> DispatchAsync({requestTypeName} request, CancellationToken cancellationToken = default)
     {{
         {(hasValidator ? "await ValidateRequestAsync(request);" : "")}
+        var pipelineActions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetServices<IPipelineAction<{requestTypeName}, {responseTypeName}>>(_serviceProvider).ToArray();
+        var processor = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<{interfaceWithGeneric}>(_serviceProvider);
+        ProcessorDelegate<{responseTypeName}> processorDelegate = () => processor.ProcessAsync(request, cancellationToken);
         
-        var requestType = request.GetType();
-        
-        if (!_asyncGenericDispatchers.TryGetValue(requestType, out var dispatcher))
-        {{
-            dispatcher = async (req, ct) =>
-                {{
-                    var pipelineActions = GetCachedPipelineActions<IPipelineAction<{requestTypeName}, {responseTypeName}>>(requestType);
-                    var typedRequest = ({requestTypeName})req;
-                    
-                    var processor = _serviceProvider.GetRequiredService<{interfaceWithGeneric}>();
-                    ProcessorDelegate<{responseTypeName}> processorDelegate = () => processor.ProcessAsync(typedRequest, ct);
-                    
-                    var result = await ExecutePipelineAsync(pipelineActions, typedRequest, ct, processorDelegate);
-                    return (object)result;
-                }};
-            _asyncGenericDispatchers.TryAdd(requestType, dispatcher);
-        }}
-
-        var result = await dispatcher(request, cancellationToken);
-        return ({responseTypeName})result;
+        return await ExecutePipelineAsync(pipelineActions, request, cancellationToken, processorDelegate);
     }}");
     }
 }

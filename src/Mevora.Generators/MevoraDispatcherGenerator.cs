@@ -40,18 +40,6 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
         builder.BeginClass("Mevora", "MevoraDispatcher", "IMevoraDispatcher");
 
         builder.Append(@"
-   
-     private T[] GetCachedPipelineActions<T>(Type requestType)
-    {
-        if (!_cachedPipelineActions.TryGetValue(requestType, out var cached))
-        {
-            var pipelineActions = _serviceProvider.GetServices<T>().ToArray();
-            cached = pipelineActions.Cast<object>().ToArray();
-            _cachedPipelineActions.TryAdd(requestType, cached);
-        }
-        return cached.Cast<T>().ToArray();
-    }
-
     private async Task ExecutePipelineAsync<TRequest>(
         IPipelineAction<TRequest>[] pipelineActions, 
         TRequest request, 
@@ -101,29 +89,13 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
         return await pipeline();
     }
 
-    private bool HasValidator<TRequest>() where TRequest : IRequest
-    {
-        var type = typeof(TRequest);
-        if (_hasValidatorCache.TryGetValue(type, out var hasValidator)) 
-            return hasValidator;
-
-        var validator = _serviceProvider.GetService<IRequestValidator<TRequest>>();
-        hasValidator = validator != null;
-        
-        if (hasValidator)
-            _cachedValidators.TryAdd(type, validator!);
-            
-        _hasValidatorCache.TryAdd(type, hasValidator);
-        return hasValidator;
-    }
-
     private async Task ValidateRequestAsync<TRequest>(TRequest request) where TRequest : IRequest
     {
-        if (!HasValidator<TRequest>()) 
+        var validator = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<IRequestValidator<TRequest>>(_serviceProvider);
+        if (validator == null) 
             return;
             
         var requestType = typeof(TRequest);
-        var validator = (IRequestValidator<TRequest>)_cachedValidators[requestType];
 
         var pool = _validationContextPool.GetOrAdd(requestType, _ => new ConcurrentBag<object>());
         
@@ -158,27 +130,6 @@ internal class MevoraDispatcherGenerator : IIncrementalGenerator
             pool.Add(contextObj);
         }
     }
-
-  private Func<object, CancellationToken, Task>[] GetCachedMessageDelegates<T>() where T : IMessage
-{
-    var msgType = typeof(T);
-
-    if (!_cachedMessageDelegates.TryGetValue(msgType, out var cached))
-    {
-        var delegates = _serviceProvider
-            .GetServices<IMessageProcessor<T>>()
-            .GroupBy(p => p.GetType()) // duplicate processor'ları engelle
-            .Select(g => g.First())
-            .Select<IMessageProcessor<T>, Func<object, CancellationToken, Task>>(proc =>
-                async (msg, ct) => await proc.Run((T)msg, ct))
-            .ToArray();
-
-        _cachedMessageDelegates.TryAdd(msgType, delegates);
-        cached = delegates;
-    }
-
-    return cached;
-}
 ");
 
         var dispatcherGen = new DispatcherMethodGenerator(compilation, requestTypes);
@@ -200,7 +151,7 @@ public static class MevoraDispatcherServiceExtensions
 {
     public static IServiceCollection AddMevoraDispatcher(this IServiceCollection services)
     {
-        return services.AddSingleton<global::Mevora.IMevoraDispatcher, global::Mevora.MevoraDispatcher>();
+        return services.AddTransient<global::Mevora.IMevoraDispatcher, global::Mevora.MevoraDispatcher>();
     }
 }
 ");
