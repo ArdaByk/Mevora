@@ -10,7 +10,7 @@ By leveraging C# Source Generators, Mevora analyzes your project at compile-time
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 * **Zero Runtime Reflection**: Dispatchers and method bindings are generated entirely at compile-time.
 * **Compile-Time Safety**: If you forget to write a handler for a request, you get a compiler error immediately, not a runtime crash!
@@ -21,7 +21,7 @@ By leveraging C# Source Generators, Mevora analyzes your project at compile-time
 
 ---
 
-## 📦 Installation
+## Installation
 
 You can install Mevora via the NuGet Package Manager or the .NET CLI.
 
@@ -37,7 +37,7 @@ dotnet add package Mevora
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 To start using Mevora, you need to register it with the ASP.NET Core (or generic Host) completely natively using Dependency Injection.
 
@@ -70,7 +70,7 @@ var app = builder.Build();
 
 ---
 
-## 🛠️ Requests & Processors (CQRS)
+## Requests & Processors (CQRS)
 
 Mevora splits operations into **Requests** (which convey the data) and **Processors** (which contain the business logic). There are two types of requests: those that return a value, and those that do not.
 
@@ -135,7 +135,7 @@ public class UsersController : ControllerBase
 
 ---
 
-## 📢 Event Publishing (Pub/Sub)
+## Event Publishing (Pub/Sub)
 
 For logic that involves notifying multiple parts of your system without waiting for a single response, Mevora provides an Event Publishing system via `IMessage`.
 
@@ -173,7 +173,7 @@ await _dispatcher.PublishAsync(new OrderCreatedMessage(order.Id), cancellationTo
 
 ---
 
-## ✨ Pipeline Actions (Onion Architecture)
+## Pipeline Actions (Onion Architecture)
 
 Mevora supports pipeline behaviors that wrap your core processors. This is perfect for cross-cutting concerns like logging, caching, metrics, or database transactions.
 
@@ -221,7 +221,7 @@ cfg.AddPipelineAction(typeof(LoggingPipeline<,>));
 
 ---
 
-## 🛡️ Built-in Validation System
+## Built-in Validation System
 
 Mevora comes with an ultra-fast, object-pooled validation system. Before a request even reaches the processor or pipelines, it is validated. If it fails, a `ValidationException` is thrown, short-circuiting the entire process.
 
@@ -247,7 +247,7 @@ Validators are seamlessly cached, and `ValidationContext` objects are concurrent
 
 ---
 
-## 🔧 Frequently Asked Questions
+## Frequently Asked Questions
 
 **Does Mevora have Lifecycle issues like Captive Dependencies?**
 No. Mevora resolves your processors correctly inside the HTTP Request Scope using pure dependency injection. `Transient` processors are created newly on every request, and `Scoped` processors correctly resolve their nested Entity Framework Contexts without memory leaking.
