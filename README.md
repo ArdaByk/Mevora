@@ -78,7 +78,10 @@ Mevora splits operations into **Requests** (which convey the data) and **Process
 Define a request by implementing `IRequest<TResponse>`.
 
 ```csharp
-public record GetUserRequest(Guid UserId) : IRequest<UserDto>;
+public class GetUserRequest : IRequest<UserDTO>
+{
+    public Guid Id { get; set; }
+}
 ```
 
 Next, implement the matching processor using `IRequestProcessorAsync<TRequest, TResponse>`.

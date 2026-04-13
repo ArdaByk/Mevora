@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,7 +7,7 @@
     
     <!-- NuGet Settings -->
     <PackageId>Mevora</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
     <Title>Mevora</Title>
     <Authors>Arda</Authors>
     <Description>Mevora is a high-performance, compile-time powered CQRS and Mediator framework for .NET leveraging C# Source Generators. Strictly type-safe, and Native AOT friendly.</Description>
@@ -25,24 +25,12 @@
     <None Include="..\..\docs\logo.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Add project reference so it builds before Mevora -->
-    <ProjectReference Include="..\Mevora.Generators\Mevora.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="All" />
-  </ItemGroup>
 
-  <PropertyGroup>
-    <!-- Tells pack to run a target to get the files -->
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerator</TargetsForTfmSpecificContentInPackage>
-  </PropertyGroup>
-
-  <Target Name="PackSourceGenerator" DependsOnTargets="ResolveProjectReferences">
-    <ItemGroup>
-      <!-- Find the output of the generator project -->
-      <TfmSpecificPackageFile Include="..\Mevora.Generators\bin\$(Configuration)\netstandard2.0\Mevora.Generators.dll" 
-                              PackagePath="analyzers/dotnet/cs" />
-    </ItemGroup>
-  </Target>
-
+	<ItemGroup>
+		<None Include="..\Mevora.Generators\bin\$(Configuration)\netstandard2.0\Mevora.Generators.dll"
+			  Pack="true"
+			  PackagePath="analyzers/dotnet/cs" />
+	</ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
