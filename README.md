@@ -144,7 +144,10 @@ For logic that involves notifying multiple parts of your system without waiting 
 ### Defining & Processing Messages
 
 ```csharp
-public record OrderCreatedMessage(Guid OrderId) : IMessage;
+public class OrderCreatedMessage : IMessage
+{
+    public Guid OrderId { get; set; }
+}
 
 // Handler 1: Sends an email
 public class SendOrderConfirmationEmail : IMessageProcessor<OrderCreatedMessage>
