@@ -26,7 +26,7 @@ internal class PipelineRegistrar : IServiceRegistrar
             }
             else
             {
-                serviceCollection.TryAdd(new ServiceDescriptor(serviceType, implementationType, configurationModel.Lifetime));
+                serviceCollection.Add(new ServiceDescriptor(serviceType, implementationType, configurationModel.Lifetime));
             }
         }
     }
@@ -56,7 +56,7 @@ internal class PipelineRegistrar : IServiceRegistrar
                 var closedServiceType = typeof(IPipelineAction<,>).MakeGenericType(requestType, responseType);
                 var closedImplementationType = implementationType.MakeGenericType(requestType, responseType);
 
-                serviceCollection.TryAdd(new ServiceDescriptor(closedServiceType, closedImplementationType, configurationModel.Lifetime));
+                serviceCollection.Add(new ServiceDescriptor(closedServiceType, closedImplementationType, configurationModel.Lifetime));
             }
 
         }
