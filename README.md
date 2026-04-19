@@ -69,7 +69,7 @@ var app = builder.Build();
 
 ---
 
-## Requests & Processors (CQRS)
+## Requests & Processors
 
 Mevora splits operations into **Requests** (which convey the data) and **Processors** (which contain the business logic). There are two types of requests: those that return a value, and those that do not.
 
@@ -178,7 +178,7 @@ await _dispatcher.PublishAsync(new OrderCreatedMessage(order.Id), cancellationTo
 
 ---
 
-## Pipeline Actions (Onion Architecture)
+## Pipeline Actions
 
 Mevora supports pipeline behaviors that wrap your core processors. This is perfect for cross-cutting concerns like logging, caching, metrics, or database transactions.
 
