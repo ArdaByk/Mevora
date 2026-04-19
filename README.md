@@ -98,7 +98,7 @@ public class GetUserRequestProcessor : IRequestProcessorAsync<GetUserRequest, Us
 
     public async Task<UserDto> ProcessAsync(GetUserRequest request, CancellationToken cancellationToken)
     {
-        var user = await _repository.GetUserAsync(request.UserId, cancellationToken);
+        var user = await _repository.GetUserAsync(request.Id, cancellationToken);
         return new UserDto(user.Id, user.Name);
     }
 }
