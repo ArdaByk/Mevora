@@ -87,7 +87,7 @@ public class GetUserRequest : IRequest<UserDTO>
 Next, implement the matching processor using `IRequestProcessorAsync<TRequest, TResponse>`.
 
 ```csharp
-public class GetUserRequestProcessor : IRequestProcessorAsync<GetUserRequest, UserDto>
+public class GetUserRequestProcessor : IRequestProcessorAsync<GetUserRequest, UserDTO>
 {
     private readonly IUserRepository _repository;
 
@@ -96,10 +96,10 @@ public class GetUserRequestProcessor : IRequestProcessorAsync<GetUserRequest, Us
         _repository = repository;
     }
 
-    public async Task<UserDto> ProcessAsync(GetUserRequest request, CancellationToken cancellationToken)
+    public async Task<UserDTO> ProcessAsync(GetUserRequest request, CancellationToken cancellationToken)
     {
         var user = await _repository.GetUserAsync(request.Id, cancellationToken);
-        return new UserDto(user.Id, user.Name);
+        return new UserDTO(user.Id, user.Name);
     }
 }
 ```
@@ -123,7 +123,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetUser(Guid id, CancellationToken ct)
     {
-        var request = new GetUserRequest(id);
+        var request = new GetUserRequest { Id = id };
         
         // This is type-safe and incredibly fast!
         UserDto result = await _dispatcher.DispatchAsync(request, ct);
@@ -173,7 +173,7 @@ public class UpdateInventoryOnOrderCreated : IMessageProcessor<OrderCreatedMessa
 Use the `PublishAsync` method to trigger all registered processors simultaneously.
 
 ```csharp
-await _dispatcher.PublishAsync(new OrderCreatedMessage(order.Id), cancellationToken);
+await _dispatcher.PublishAsync(new OrderCreatedMessage { OrderId = order.Id }, cancellationToken);
 ```
 
 ---
