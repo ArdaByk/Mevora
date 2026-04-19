@@ -1,5 +1,15 @@
 <p align="center">
   <img src="docs/logo.png" alt="Mevora Logo" width="150"/>
+  <h1 align="center">Mevora</h1>
+  <p align="center">
+    <strong>A high-performance, compile-time powered CQRS and Mediator library for .NET.</strong>
+  </p>
+  <p align="center">
+    <a href="https://www.nuget.org/packages/Mevora/"><img src="https://img.shields.io/nuget/v/Mevora.svg?style=flat-square" alt="NuGet version" /></a>
+    <a href="https://www.nuget.org/packages/Mevora/"><img src="https://img.shields.io/nuget/dt/Mevora.svg?style=flat-square" alt="NuGet downloads" /></a>
+    <a href="https://github.com/ArdaByk/Mevora/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ArdaByk/Mevora.svg?style=flat-square" alt="License" /></a>
+    <img src="https://img.shields.io/badge/.NET-8.0%20%7C%209.0-blue.svg?style=flat-square" alt=".NET Version" />
+  </p>
 </p>
 
 # Mevora
